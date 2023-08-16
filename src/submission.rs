@@ -4,7 +4,7 @@ use near_sdk::{ AccountId, serde::{Serialize, Deserialize}};
 
 pub type SubmissionId = u64;
 
-use crate::category::CategoryId;
+use crate::category::{CategoryId, Category};
 use crate::member::MemberJson;
 
 // Define the Submission structure
@@ -38,6 +38,6 @@ pub struct SubmissionJson {
     pub image: String,
     pub time: Timestamp,
     pub link: Vec<String>,
-    pub categories: Vec<String>,
+    pub categories: Vec<Category>,
     pub members: Vec<MemberJson>
 }

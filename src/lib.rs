@@ -191,6 +191,9 @@ impl HackathonContract {
         time: Timestamp,
     ) {
         let account_id = env::signer_account_id();
+        for member in members.iter() {
+            assert_eq!(self.members.contains_key(member), true, "participants not a member");
+        }
 
         let submission_id: SubmissionId = self.next_submission_id;
         let submission = Submission::new(
@@ -406,11 +409,31 @@ impl HackathonContract {
                 let mut p_hack = Vec::new();
 
                 for hackathon in user.created_hackathons {
-                    c_hack.push(self.get_hackathon_by_id(hackathon).unwrap())
+                    match self.get_hackathon_by_id(hackathon) {
+                        Some(hackathon) => {
+                            let total_prize = self.get_total_prize(&hackathon);
+        
+                            c_hack.push(HackathonWithTotalPrize {
+                                hackathon,
+                                total_prize
+                            })
+                        },
+                        None => ()
+                    }
                 }
 
                 for hackathon in user.joined_hackathons {
-                    p_hack.push(self.get_hackathon_by_id(hackathon).unwrap())
+                    match self.get_hackathon_by_id(hackathon) {
+                        Some(hackathon) => {
+                            let total_prize = self.get_total_prize(&hackathon);
+        
+                            p_hack.push(HackathonWithTotalPrize {
+                                hackathon,
+                                total_prize
+                            })
+                        },
+                        None => ()
+                    }
                 }
 
                 Some(MemberJsonDetail {
@@ -510,8 +533,8 @@ impl HackathonContract {
     
                 for p_id in result.categories.iter() {
                     // let cat = self.get_category_by_id(*p_id).unwrap();
-                    let cat = self.categories.get(p_id).unwrap().name;
-                    cats.push(cat.clone());
+                    let cat = self.categories.get(p_id).unwrap();
+                    cats.push(cat);
                 }
     
                 for p_id in result.members.iter() {

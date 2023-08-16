@@ -3,7 +3,7 @@ use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::AccountId;
 use near_sdk::serde::{Serialize, Deserialize};
 
-use crate::hackathon::{HackathonId, Hackathon};
+use crate::hackathon::{HackathonId, HackathonWithTotalPrize};
 
 // Define the Member structure
 #[derive(BorshDeserialize, BorshSerialize,Serialize, Deserialize, Debug)]
@@ -49,6 +49,6 @@ pub struct MemberJsonDetail {
     pub name: String,
     pub image: Option<String>,
     pub bio: Option<String>,
-    pub joined_hackathons: Vec<Hackathon>,
-    pub created_hackathons: Vec<Hackathon>
+    pub joined_hackathons: Vec<HackathonWithTotalPrize>,
+    pub created_hackathons: Vec<HackathonWithTotalPrize>
 }
