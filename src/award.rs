@@ -1,6 +1,8 @@
-use near_sdk::{Balance, AccountId};
+use near_sdk::Balance;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::serde::{Serialize, Deserialize};
+
+use crate::submission::{SubmissionId, SubmissionJson};
 
 pub type AwardId = u64;
 
@@ -11,7 +13,7 @@ pub struct Award {
     pub id: AwardId,
     pub name: String,
     pub price: Balance,
-    pub winner: Option<AccountId>,
+    pub winner: Option<SubmissionId>,
     pub is_awarded: bool
 }
 
@@ -20,4 +22,14 @@ impl Award {
     pub fn new(id: AwardId,name: String, price: Balance) -> Self {
         Award { id: id, name, price, winner: None, is_awarded: false }
     }
+}
+
+#[derive(BorshDeserialize, BorshSerialize,Serialize, Deserialize, Debug)]
+#[serde(crate = "near_sdk::serde")]
+pub struct AwardJson {
+    pub id: AwardId,
+    pub name: String,
+    pub price: Balance,
+    pub winner: Option<SubmissionJson>,
+    pub is_awarded: bool
 }

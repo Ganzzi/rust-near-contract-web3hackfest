@@ -1,3 +1,4 @@
+use near_sdk::Balance;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::{ AccountId, Timestamp, env, serde::{Serialize, Deserialize}};
 
@@ -8,14 +9,16 @@ use crate::submission::{SubmissionId, SubmissionJson};
 pub type HackathonId = u64;
 
 // Define the hackathon structure
-#[derive(BorshDeserialize, BorshSerialize,Serialize, Deserialize, Debug)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Hackathon {
     pub owner: AccountId,
     pub id: HackathonId,
     pub name: String,
     pub description: String,
-    pub time: Timestamp,
+    pub image: String,
+    pub start: Timestamp,
+    pub end: Timestamp,
     pub tags: Vec<String>,
     pub participants_list: Vec<AccountId>,
     pub submissions_list: Vec<SubmissionId>,
@@ -33,7 +36,9 @@ impl Hackathon {
             owner: env::signer_account_id(),
             name: payload.name,
             description: payload.description,
-            time: payload.time,
+            start: payload.start,
+            end: payload.end,
+            image: payload.image,
             tags: payload.tags,
             participants_list: Vec::new(),
             submissions_list: Vec::new(),
@@ -57,6 +62,15 @@ pub struct HackathonJson {
 pub struct HackathonPayload {
     name: String,
     description: String,
-    time: Timestamp,
     tags: Vec<String>,
+     image: String,
+     start: Timestamp,
+     end: Timestamp,
+}
+
+#[derive(BorshDeserialize, BorshSerialize,Serialize, Deserialize, Debug)]
+#[serde(crate = "near_sdk::serde")]
+pub struct HackathonWithTotalPrize {
+    pub hackathon: Hackathon,
+    pub total_prize: Balance, 
 }

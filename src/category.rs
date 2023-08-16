@@ -1,7 +1,7 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::serde::{Serialize, Deserialize};
 
-use crate::award::{Award, AwardId};
+use crate::award::{AwardId, AwardJson};
 
 pub type CategoryId = u64;
 
@@ -33,6 +33,5 @@ impl Category {
 pub struct CategoryJson {
     pub id: CategoryId,
     pub name: String,
-    pub awards: Vec<Award>
-    // pub prizes_list: Vec<Award>
+    pub awards: Vec<AwardJson>
 }
