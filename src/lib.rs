@@ -1,6 +1,7 @@
 use award::{Award, AwardId, AwardJson};
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LookupMap, UnorderedSet};
+use near_sdk::json_types::U128;
 use near_sdk::{env, near_bindgen, AccountId, Balance, PanicOnDefault, Promise, Timestamp};
 
 // declare module
@@ -59,12 +60,7 @@ impl HackathonContract {
 // PUBLIC CALL FUNCTION
 #[near_bindgen]
 impl HackathonContract {
-    pub fn add_member(
-        &mut self,
-        name: String,
-        image: Option<String>,
-        bio: Option<String>,
-    ) {
+    pub fn add_member(&mut self, name: String, image: Option<String>, bio: Option<String>) {
         let id = env::signer_account_id();
         let member = Member::new(&id, name, image, bio);
 
@@ -85,19 +81,18 @@ impl HackathonContract {
 
         match self.members.get(&creator_id) {
             Some(mut creator) => {
-            creator.created_hackathons.push(hackathon_id);
+                creator.created_hackathons.push(hackathon_id);
 
-            let hackathon = Hackathon::new(hackathon_id, payload);
+                let hackathon = Hackathon::new(hackathon_id, payload);
 
-            self.hackathons_list.insert(&hackathon_id);
-            self.hackathons.insert(&hackathon_id, &hackathon);
+                self.hackathons_list.insert(&hackathon_id);
+                self.hackathons.insert(&hackathon_id, &hackathon);
 
+                self.members.insert(&creator_id, &creator);
 
-            self.members.insert(&creator_id, &creator);
-
-            Some(hackathon_id)
-            }, 
-            None => None
+                Some(hackathon_id)
+            }
+            None => None,
         }
     }
 
@@ -128,7 +123,7 @@ impl HackathonContract {
         hackathon_id: HackathonId,
         category_id: CategoryId,
         name: String,
-        total: Balance,
+        total: f64,
     ) -> Option<AwardId> {
         assert_eq!(
             env::signer_account_id(),
@@ -140,7 +135,7 @@ impl HackathonContract {
             let award_id = self.next_award_id;
             self.next_award_id += 1;
 
-            let award = Award::new(award_id, name, total);
+            let award = Award::new(award_id, name, U128((total * 1_000_000_000_000_000_000_000_000.0).trunc() as u128));
 
             self.awards.insert(&award_id, &award);
 
@@ -190,37 +185,38 @@ impl HackathonContract {
         link: Vec<String>,
         time: Timestamp,
     ) {
-        let account_id = env::signer_account_id();
-        for member in members.iter() {
-            assert_eq!(self.members.contains_key(member), true, "participants not a member");
-        }
-
-        let submission_id: SubmissionId = self.next_submission_id;
-        let submission = Submission::new(
-            submission_id,
-            categories,
-            members,
-            name,
-            description,
-            image,
-            link,
-            time,
-        );
-
-        self.submissions.insert(&submission_id, &submission);
-
         if let Some(mut hackathon) = self.hackathons.get(&hackathon_id) {
-            assert_eq!(
-                hackathon.participants_list.contains(&account_id),
-                true,
-                "Not participated"
+            for member in members.iter() {
+                assert_eq!(
+                    self.members.contains_key(member),
+                    true,
+                    "Participant not a member"
+                );
+                assert_eq!(
+                    hackathon.participants_list.contains(&member),
+                    true,
+                    "Not participated in hackathon"
+                );
+            }
+
+            let submission_id: SubmissionId = self.next_submission_id;
+            let submission = Submission::new(
+                submission_id,
+                categories,
+                members,
+                name,
+                description,
+                image,
+                link,
+                time,
             );
+            self.submissions.insert(&submission_id, &submission);
 
             hackathon.submissions_list.push(submission_id);
             self.hackathons.insert(&hackathon_id, &hackathon);
-        }
 
-        self.next_submission_id += 1;
+            self.next_submission_id += 1;
+        }
     }
 
     pub fn judge_winner(
@@ -272,29 +268,39 @@ impl HackathonContract {
         }
     }
 
-    pub fn update_member(&mut self, name: Option<String>, image: Option<String>, bio: Option<String>) -> Option<MemberJson>{
+    pub fn update_member(
+        &mut self,
+        name: Option<String>,
+        image: Option<String>,
+        bio: Option<String>,
+    ) -> Option<MemberJson> {
         let id: AccountId = env::signer_account_id();
         assert_eq!(self.members_list.contains(&id), true, "Member not exist");
         match self.members.get(&id) {
             Some(mut mem) => {
                 match name {
                     Some(name) => mem.name = name.clone(),
-                    None => ()
+                    None => (),
                 };
                 match image {
                     Some(image) => mem.image = Some(image.clone()),
-                    None => ()
+                    None => (),
                 };
                 match bio {
                     Some(bio) => mem.bio = Some(bio.clone()),
-                    None => ()
+                    None => (),
                 };
 
                 self.members.insert(&id, &mem);
 
-                Some(MemberJson { id, name: mem.name, image: mem.image, bio: mem.bio })
-            }, 
-            None => None
+                Some(MemberJson {
+                    id,
+                    name: mem.name,
+                    image: mem.image,
+                    bio: mem.bio,
+                })
+            }
+            None => None,
         }
     }
 }
@@ -331,7 +337,7 @@ impl HackathonContract {
         if let Some(mut award) = self.awards.get(&award_id) {
             assert_eq!(award.is_awarded, false, "award awarded");
             assert_eq!(
-                env::attached_deposit(),
+                U128(env::attached_deposit()),
                 award.price,
                 "attached deposit should be equal to the award"
             );
@@ -342,13 +348,12 @@ impl HackathonContract {
                 .and_then(|sub| sub.members.first().cloned())
                 .unwrap();
 
-            Promise::new(receiver).transfer(award.price);
+            Promise::new(receiver).transfer(award.price.into());
             award.is_awarded = true;
 
             self.awards.insert(&award_id, &award);
         }
     }
-
 }
 
 // PUBLIC VIEW FUNCTION
@@ -364,10 +369,10 @@ impl HackathonContract {
 
                     hackathons_with_prizes.push(Some(HackathonWithTotalPrize {
                         hackathon,
-                        total_prize
+                        total_prize,
                     }))
-                },
-                None => hackathons_with_prizes.push(None)
+                }
+                None => hackathons_with_prizes.push(None),
             }
         }
 
@@ -412,13 +417,13 @@ impl HackathonContract {
                     match self.get_hackathon_by_id(hackathon) {
                         Some(hackathon) => {
                             let total_prize = self.get_total_prize(&hackathon);
-        
+
                             c_hack.push(HackathonWithTotalPrize {
                                 hackathon,
-                                total_prize
+                                total_prize,
                             })
-                        },
-                        None => ()
+                        }
+                        None => (),
                     }
                 }
 
@@ -426,13 +431,13 @@ impl HackathonContract {
                     match self.get_hackathon_by_id(hackathon) {
                         Some(hackathon) => {
                             let total_prize = self.get_total_prize(&hackathon);
-        
+
                             p_hack.push(HackathonWithTotalPrize {
                                 hackathon,
-                                total_prize
+                                total_prize,
                             })
-                        },
-                        None => ()
+                        }
+                        None => (),
                     }
                 }
 
@@ -448,134 +453,134 @@ impl HackathonContract {
             None => None,
         }
     }
-
 }
 
 // PRIVATE VIEW FUNCTION
 #[near_bindgen]
 impl HackathonContract {
-        fn get_hackathon_by_id(&self, hackathon_id: HackathonId) -> Option<Hackathon> {
-            if let Some(result) = self.hackathons.get(&hackathon_id) {
-                Some(result)
-            } else {
-                None
-            }
+    fn get_hackathon_by_id(&self, hackathon_id: HackathonId) -> Option<Hackathon> {
+        if let Some(result) = self.hackathons.get(&hackathon_id) {
+            Some(result)
+        } else {
+            None
         }
-    
-        fn get_category_by_id(&self, category_id: CategoryId) -> Option<CategoryJson> {
-            if let Some(result) = self.categories.get(&category_id) {
-                // let mut prizes: Vec<String> = Vec::new();
-                let mut awards = Vec::new();
-    
-                for i in result.awards.iter() {
-                    // let prize = self.get_prize_by_id(*i).unwrap();
-                    // prizes.push(prize);
-                    let a = self.get_award_by_id(*i).unwrap();
-    
-                    awards.push(a);
-                }
-    
-                let category_json: CategoryJson = CategoryJson {
-                    name: result.name,
-                    id: result.id,
-                    awards, // prizes_list: prizes
-                };
-                Some(category_json)
-            } else {
-                None
+    }
+
+    fn get_category_by_id(&self, category_id: CategoryId) -> Option<CategoryJson> {
+        if let Some(result) = self.categories.get(&category_id) {
+            // let mut prizes: Vec<String> = Vec::new();
+            let mut awards = Vec::new();
+
+            for i in result.awards.iter() {
+                // let prize = self.get_prize_by_id(*i).unwrap();
+                // prizes.push(prize);
+                let a = self.get_award_by_id(*i).unwrap();
+
+                awards.push(a);
             }
+
+            let category_json: CategoryJson = CategoryJson {
+                name: result.name,
+                id: result.id,
+                awards, // prizes_list: prizes
+            };
+            Some(category_json)
+        } else {
+            None
         }
-    
-        fn get_award_by_id(&self, award_id: AwardId) -> Option<AwardJson> {
-            if let Some(rs) = self.awards.get(&award_id) {
-                match rs.winner {
-                    Some(id) => {
-                        let s_json = self.get_submission_by_id(id);
-                        let a_json = AwardJson {
-                            name: rs.name,
-                            id: rs.id,
-                            price: rs.price,
-                            winner: s_json,
-                            is_awarded: rs.is_awarded,
-                        };
-                        Some(a_json)
-                    }
-                    None => Some(AwardJson {
+    }
+
+    fn get_award_by_id(&self, award_id: AwardId) -> Option<AwardJson> {
+        if let Some(rs) = self.awards.get(&award_id) {
+            match rs.winner {
+                Some(id) => {
+                    let s_json = self.get_submission_by_id(id);
+                    let a_json = AwardJson {
                         name: rs.name,
                         id: rs.id,
                         price: rs.price,
-                        winner: None,
+                        winner: s_json,
                         is_awarded: rs.is_awarded,
-                    }),
+                    };
+                    Some(a_json)
                 }
-            } else {
-                None
+                None => Some(AwardJson {
+                    name: rs.name,
+                    id: rs.id,
+                    price: rs.price,
+                    winner: None,
+                    is_awarded: rs.is_awarded,
+                }),
             }
+        } else {
+            None
         }
-    
-        fn get_member_by_id(&self, member_id: AccountId) -> Option<MemberJson> {
-            if let Some(result) = self.members.get(&member_id) {
-                Some(MemberJson {
-                    name: result.name,
-                    id: result.id,
-                    image: result.image,
-                    bio: result.bio,
-                })
-            } else {
-                None
+    }
+
+    fn get_member_by_id(&self, member_id: AccountId) -> Option<MemberJson> {
+        if let Some(result) = self.members.get(&member_id) {
+            Some(MemberJson {
+                name: result.name,
+                id: result.id,
+                image: result.image,
+                bio: result.bio,
+            })
+        } else {
+            None
+        }
+    }
+
+    fn get_submission_by_id(&self, submission_id: SubmissionId) -> Option<SubmissionJson> {
+        if let Some(result) = self.submissions.get(&submission_id) {
+            let mut pars = Vec::new();
+            let mut cats = Vec::new();
+
+            for p_id in result.categories.iter() {
+                // let cat = self.get_category_by_id(*p_id).unwrap();
+                let cat = self.categories.get(p_id).unwrap();
+                cats.push(cat);
             }
-        }
-    
-        fn get_submission_by_id(&self, submission_id: SubmissionId) -> Option<SubmissionJson> {
-            if let Some(result) = self.submissions.get(&submission_id) {
-                let mut pars = Vec::new();
-                let mut cats = Vec::new();
-    
-                for p_id in result.categories.iter() {
-                    // let cat = self.get_category_by_id(*p_id).unwrap();
-                    let cat = self.categories.get(p_id).unwrap();
-                    cats.push(cat);
-                }
-    
-                for p_id in result.members.iter() {
-                    let par = self.get_member_by_id(p_id.clone()).unwrap();
-                    pars.push(par);
-                }
-    
-                Some(SubmissionJson {
-                    id: result.id,
-                    categories: cats,
-                    members: pars,
-                    name: result.name,
-                    link: result.link,
-                    image: result.image,
-                    description: result.description,
-                    time: result.time,
-                })
-            } else {
-                None
+
+            for p_id in result.members.iter() {
+                let par = self.get_member_by_id(p_id.clone()).unwrap();
+                pars.push(par);
             }
+
+            Some(SubmissionJson {
+                id: result.id,
+                categories: cats,
+                members: pars,
+                name: result.name,
+                link: result.link,
+                image: result.image,
+                description: result.description,
+                time: result.time,
+            })
+        } else {
+            None
         }
-    
-        fn get_total_prize(&self, hackathon: &Hackathon) -> Balance{
-            let mut total = 0;
-    
-            for category_id in hackathon.categories_list.iter() {
-                match self.categories.get(category_id) {
-                    Some(category) => {
-                        for award_id in category.awards.iter() {
-                            match self.awards.get(award_id) {
-                                Some(award) => {
-                                    total += award.price;
-                                },
-                                None => ()
+    }
+
+    fn get_total_prize(&self, hackathon: &Hackathon) -> U128 {
+        let mut total = 0;
+
+        for category_id in hackathon.categories_list.iter() {
+            match self.categories.get(category_id) {
+                Some(category) => {
+                    for award_id in category.awards.iter() {
+                        match self.awards.get(award_id) {
+                            Some(award) => {
+                                let price: Balance = award.price.into();
+                                total += price;
                             }
+                            None => (),
                         }
-                    }, None => ()
+                    }
                 }
+                None => (),
             }
-    
-            total
         }
-    
+
+        U128(total)
+    }
 }

@@ -1,5 +1,5 @@
-use near_sdk::Balance;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+use near_sdk::json_types::U128;
 use near_sdk::{ AccountId, Timestamp, env, serde::{Serialize, Deserialize}};
 
 use crate::category::{CategoryId, CategoryJson};
@@ -72,5 +72,5 @@ pub struct HackathonPayload {
 #[serde(crate = "near_sdk::serde")]
 pub struct HackathonWithTotalPrize {
     pub hackathon: Hackathon,
-    pub total_prize: Balance, 
+    pub total_prize: U128, 
 }
