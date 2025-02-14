@@ -1,5 +1,7 @@
+[Ignite Hack](https://devfolio.co/projects/ignite-hack-bc90)
 # rust-near-contract-web3hackfest
-Welcome to the README for your Rust smart contract project. This document will guide you through the installation process and deployment steps for your project.
+
+Welcome to the README for Rust smart contract project. This document will guide you through the installation process and deployment steps for your project.
 
 # Installation
 Before you can deploy your Rust smart contract, you need to set up the necessary tools and dependencies. Follow these steps to get started:
